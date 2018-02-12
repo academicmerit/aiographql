@@ -51,7 +51,7 @@ Micro framework for fast, correct and simple api - graphql, asyncio, uvloop, min
     {"data":{"me":{"id":"42","name":"John"}}}
 
 See more examples and tests about JWT auth, concurrent slow DB queries, etc:  
-TODO:tests
+https://github.com/denis-ryzhkov/aiograpi/tree/master/tests
 
 ## Config
 

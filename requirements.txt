@@ -1,0 +1,4 @@
+graphene==2.0.1
+graphql-core==2.0
+ujson==1.35
+uvloop==0.9.1

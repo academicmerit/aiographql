@@ -10,24 +10,24 @@ with open(os.path.join(here, 'requirements-test.txt'), 'r') as f:
     requirements_test = [line.rstrip() for line in f]
 
 setup(
-    name='aiograpi',
+    name='aiographql',
     version='0.1.0',
-    description='Micro framework for fast, correct and simple api - graphql, asyncio, uvloop, min http',
-    keywords='graphql asyncio uvloop',
+    description='asyncio + graphql = fast and simple api',
+    keywords='asyncio graphql graphene uvloop',
     long_description='''
-* `graphql <http://graphql.org/>`_ - all you need and nothing more in one request +auto docs of your api
 * `asyncio <https://docs.python.org/3/library/asyncio.html>`_ - explicit concurrency `to reduce race conditions <https://glyph.twistedmatrix.com/2014/02/unyielding.html>`_
+* `graphql <http://graphql.org/>`_ - all you need and nothing more in one request +auto docs of your api
 * `uvloop, protocol <https://github.com/MagicStack/uvloop#performance>`_ - `top performance <https://magic.io/blog/uvloop-blazing-fast-python-networking/>`_
 * minimal http - unlike REST frameworks that are waste of time for ``/graphql`` endpoint
-* pluggable context - for auth, etc
+* pluggable context - for auth, logging, etc
 * exception handling - at all levels, with default or custom handler
 
 Usage::
 
-    pip install aiograpi
+    pip install aiographql
 
     cat <<'END' >serve.py
-    import asyncio, aiograpi, graphene
+    import asyncio, aiographql, graphene
 
     class User(graphene.ObjectType):
         id = graphene.ID(required=True)
@@ -41,7 +41,7 @@ Usage::
             return User(id=42, name='John')
 
     schema = graphene.Schema(query=Query, mutation=None)
-    aiograpi.serve(schema)
+    aiographql.serve(schema)
     END
 
     UNIX_SOCK=/tmp/worker0 python3 serve.py
@@ -57,11 +57,11 @@ Usage::
     # 1 second async await for DB and then:
     {"data":{"me":{"id":"42","name":"John"}}}
 
-See `more examples and tests <https://github.com/academicmerit/aiograpi/tree/master/tests>`_ about JWT auth, concurrent slow DB queries, etc.
+See `more examples and tests <https://github.com/academicmerit/aiographql/tree/master/tests>`_ about JWT auth, concurrent slow DB queries, etc.
 
 Config::
 
-    import aiograpi; help(aiograpi.serve)
+    import aiographql; help(aiographql.serve)
 
     serve(schema, get_context=None, unix_sock=None, exception_handler=None, enable_uvloop=True, run=True)
         Configure the stack and start serving requests
@@ -74,7 +74,7 @@ Config::
 * ``run``: ``bool`` - if ``True``, run the loop and the coroutine serving requests, else return this coroutine
 * return: ``coroutine`` or ``None`` - the coroutine serving requests, unless ``run=True``
 ''',
-    url='https://github.com/academicmerit/aiograpi',
+    url='https://github.com/academicmerit/aiographql',
     author='Denis Ryzhkov',
     author_email='denisr@denisr.com',
     license='MIT',
@@ -88,7 +88,7 @@ Config::
         'Topic :: Software Development :: Libraries :: Application Frameworks',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-    py_modules=['aiograpi'],
+    py_modules=['aiographql'],
     python_requires='>=3.5',
     install_requires=requirements,
     tests_require=requirements_test,

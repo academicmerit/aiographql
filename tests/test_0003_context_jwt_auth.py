@@ -4,7 +4,7 @@
 import asyncio
 import re
 
-import aiograpi
+import aiographql
 import jwt
 
 ### const
@@ -29,7 +29,7 @@ def get_context(headers, request):
 
 def test_get_context(schema, curl):
 
-    server_coro = aiograpi.serve(schema, get_context=get_context, run=False)
+    server_coro = aiographql.serve(schema, get_context=get_context, run=False)
     loop = asyncio.get_event_loop()
     server_task = loop.create_task(server_coro)
 

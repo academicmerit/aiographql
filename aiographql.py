@@ -1,7 +1,7 @@
 """
-aiograpi - micro framework for fast, correct and simple api - graphql, asyncio, uvloop, min http
-
-Docs: https://github.com/academicmerit/aiograpi/blob/master/README.md
+aiographql version 0.1.0
+asyncio + graphql = fast and simple api
+Docs: https://github.com/academicmerit/aiographql/blob/master/README.md
 """
 
 ### import

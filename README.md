@@ -1,26 +1,26 @@
-# aiograpi
+# aiographql
 
-Micro framework for fast, correct and simple api - graphql, asyncio, uvloop, min http
+asyncio + graphql = fast and simple api
 
-* `graphql` - all you need and nothing more in one request +auto docs of your api  
-  http://graphql.org/  
-  http://graphene-python.org/
 * `asyncio` - explicit concurrency to reduce race conditions  
   https://docs.python.org/3/library/asyncio.html  
   https://glyph.twistedmatrix.com/2014/02/unyielding.html
+* `graphql` - all you need and nothing more in one request +auto docs of your api  
+  http://graphql.org/  
+  http://graphene-python.org/
 * `uvloop`, `protocol` - top performance  
   https://magic.io/blog/uvloop-blazing-fast-python-networking/  
   https://github.com/MagicStack/uvloop#performance
 * minimal http - unlike REST frameworks that are waste of time for `/graphql` endpoint
-* pluggable context - for auth, etc
+* pluggable context - for auth, logging, etc
 * exception handling - at all levels, with default or custom handler
 
 ## Usage
 
-    pip install aiograpi
+    pip install aiographql
 
     cat <<'END' >serve.py
-    import asyncio, aiograpi, graphene
+    import asyncio, aiographql, graphene
 
     class User(graphene.ObjectType):
         id = graphene.ID(required=True)
@@ -34,7 +34,7 @@ Micro framework for fast, correct and simple api - graphql, asyncio, uvloop, min
             return User(id=42, name='John')
 
     schema = graphene.Schema(query=Query, mutation=None)
-    aiograpi.serve(schema)
+    aiographql.serve(schema)
     END
 
     UNIX_SOCK=/tmp/worker0 python3 serve.py
@@ -51,11 +51,11 @@ Micro framework for fast, correct and simple api - graphql, asyncio, uvloop, min
     {"data":{"me":{"id":"42","name":"John"}}}
 
 See more examples and tests about JWT auth, concurrent slow DB queries, etc:  
-https://github.com/academicmerit/aiograpi/tree/master/tests
+https://github.com/academicmerit/aiographql/tree/master/tests
 
 ## Config
 
-    import aiograpi; help(aiograpi.serve)
+    import aiographql; help(aiographql.serve)
 
     serve(schema, get_context=None, unix_sock=None, exception_handler=None, enable_uvloop=True, run=True)
         Configure the stack and start serving requests
@@ -83,7 +83,7 @@ https://github.com/academicmerit/aiograpi/tree/master/tests
 
 ## License
 
-aiograpi version 0.1.0  
-Created and maintained by [Denis Ryzhkov](https://github.com/denis-ryzhkov/) \<denisr@denisr.com\> and other [aiograpi authors](AUTHORS.md)  
+aiographql version 0.1.0  
+Created and maintained by [Denis Ryzhkov](https://github.com/denis-ryzhkov/) \<denisr@denisr.com\> and other [aiographql authors](AUTHORS.md)  
 Copyright (C) 2018 by AcademicMerit LLC (dba [FineTune](https://www.finetunelearning.com/))  
 MIT License, see http://opensource.org/licenses/MIT

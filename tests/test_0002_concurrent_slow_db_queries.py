@@ -4,13 +4,13 @@
 import asyncio
 import time
 
-import aiograpi
+import aiographql
 
 ### test
 
 def test_concurrency(schema, curl):
 
-    server_coro = aiograpi.serve(schema, run=False)
+    server_coro = aiographql.serve(schema, run=False)
     loop = asyncio.get_event_loop()
     server_task = loop.create_task(server_coro)
 

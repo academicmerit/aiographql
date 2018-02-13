@@ -1,2 +1,2 @@
-PyJWT==1.5.3
-pytest==3.4.0
+PyJWT>=1.5.3,<2
+pytest>=3.4.0,<4

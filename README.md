@@ -17,7 +17,7 @@ Micro framework for fast, correct and simple api - graphql, asyncio, uvloop, min
 
 ## Usage
 
-    pip install aiograpi  # TODO: After switch to public.
+    pip install aiograpi
 
     cat <<'END' >serve.py
     import asyncio, aiograpi, graphene

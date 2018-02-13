@@ -51,7 +51,7 @@ Micro framework for fast, correct and simple api - graphql, asyncio, uvloop, min
     {"data":{"me":{"id":"42","name":"John"}}}
 
 See more examples and tests about JWT auth, concurrent slow DB queries, etc:  
-https://github.com/denis-ryzhkov/aiograpi/tree/master/tests
+https://github.com/academicmerit/aiograpi/tree/master/tests
 
 ## Config
 
@@ -84,5 +84,6 @@ https://github.com/denis-ryzhkov/aiograpi/tree/master/tests
 ## License
 
 aiograpi version 0.1.0  
-Copyright (C) 2018 by Denis Ryzhkov <denisr@denisr.com>  
+Created and maintained by [Denis Ryzhkov](https://github.com/denis-ryzhkov/) \<denisr@denisr.com\> and other [aiograpi authors](AUTHORS.md)  
+Copyright (C) 2018 by AcademicMerit LLC (dba [FineTune](https://www.finetunelearning.com/))  
 MIT License, see http://opensource.org/licenses/MIT

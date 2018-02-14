@@ -17,11 +17,11 @@ def test_concurrency(schema, curl):
     async def clients():
 
         started_at = time.perf_counter()
-        slothes = [
+        sloths = [
             curl('query Sloth($seconds: Float) { slowDb(seconds: $seconds) }', {"seconds": seconds})
             for seconds in [0.5, 0.7, 0.5, 0.7, 0.5]
         ]
-        await asyncio.gather(*slothes)
+        await asyncio.gather(*sloths)
         result = time.perf_counter() - started_at
 
         server_task.cancel()

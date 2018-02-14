@@ -52,7 +52,7 @@ async def another():
 loop.run_until_complete(one())
 # Prints: 1 2 3 4
 
-### 7. Concurrent waiting of over 9000 sloth DB queries:
+### 7. Concurrent waiting for over 9000 sloth DB queries:
 
 from time import perf_counter as now
 start = now()

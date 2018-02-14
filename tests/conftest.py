@@ -25,7 +25,8 @@ class Query(graphene.ObjectType):
     me = graphene.Field(User)
     slow_db = graphene.Field(graphene.Boolean, seconds=graphene.Float())
 
-    async def resolve_me(self, info):
+    # NOTE this resolver is not async - because it does not need to await.
+    def resolve_me(self, info):
         user_id = info.context and info.context['jwt'] and info.context['jwt']['id'] or 42
         return User(id=user_id, name='John')
 

@@ -17,21 +17,21 @@ from graphql.execution.executors.asyncio import AsyncioExecutor
 
 ### const
 
-UNIX_SOCK_ENV_VAR = 'UNIX_SOCK'
-UNIX_SOCK_DEFAULT = '/tmp/worker0'
-
 END_OF_HEADERS = b'\r\n\r\n'
 CONTENT_LENGTH_RE = re.compile(br'\r\nContent-Length:\s*(\d+)', re.IGNORECASE)
 
 ### serve
 
-def serve(schema, get_context=None, unix_sock=None, exception_handler=None, enable_uvloop=True, run=True):
+def serve(schema, listen, get_context=None, exception_handler=None, enable_uvloop=True, run=True):
     """
     Configure the stack and start serving requests
 
     @param schema: graphene.Schema - GraphQL schema to serve
+    @param listen: list( - one or more endpoints to listen for connections:
+        dict(protocol='tcp', port=25100, ...) - https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.create_server
+        dict(protocol='unix', path='/tmp/worker0', ...) - https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.create_unix_server
+    )
     @param get_context: None or callable(headers: bytes, request: dict): mixed - callback to produce GraphQL context, for example auth
-    @param unix_sock: str - path to unix socket to listen for requests, defaults to env var UNIX_SOCK or '/tmp/worker0'
     @param exception_handler: None or callable(loop, context: dict) - default or custom exception handler as defined in
         https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.set_exception_handler
     @param enable_uvloop: bool - enable uvloop for top performance, unless you have a better loop
@@ -47,10 +47,7 @@ def serve(schema, get_context=None, unix_sock=None, exception_handler=None, enab
         if exception_handler:
             loop.set_exception_handler(exception_handler)
 
-        if not unix_sock:
-            unix_sock = os.environ.get(UNIX_SOCK_ENV_VAR, UNIX_SOCK_DEFAULT)
-
-        coro = _serve(loop, schema, get_context, unix_sock)
+        coro = _serve(schema, listen, get_context, loop)
         if run:
             loop.run_until_complete(coro)
         else:
@@ -62,21 +59,38 @@ def serve(schema, get_context=None, unix_sock=None, exception_handler=None, enab
             exception=e,
         ))
 
-async def _serve(loop, schema, get_context, unix_sock):
+async def _serve(schema, listen, get_context, loop):
     """
     The coroutine serving requests.
     Should be created by serve() only.
 
-    @param loop: uvloop.Loop - or some other loop if you opted out of enable_uvloop=True
     @param schema: graphene.Schema - GraphQL schema to serve
+    @param listen: list(...) - one or more endpoints to listen for connections, as defined in serve()
     @param get_context: None or callable(headers: bytes, request: dict): mixed - callback to produce GraphQL context, for example auth
-    @param unix_sock: str - path to unix socket to listen for requests
+    @param loop: uvloop.Loop - or some other loop if you opted out of enable_uvloop=True
     """
-    if os.path.exists(unix_sock):
-        os.remove(unix_sock)
+    servers = []
 
-    server = await loop.create_unix_server(lambda: ConnectionFromClient(loop, schema, get_context), unix_sock)
-    await server.wait_closed()
+    def protocol_factory():
+        return ConnectionFromClient(schema, get_context, loop)
+
+    assert listen, 'At least one endpoint should be specified in "listen"'
+    for endpoint in listen:
+        kwargs = endpoint.copy()  # to allow reuse of "listen" configuration
+        protocol = kwargs.pop('protocol')
+
+        if protocol == 'tcp':
+            servers.append(await loop.create_server(protocol_factory, **kwargs))
+
+        elif protocol == 'unix':
+            if os.path.exists(kwargs['path']):
+                os.remove(kwargs['path'])
+            servers.append(await loop.create_unix_server(protocol_factory, **kwargs))
+
+        else:
+            raise ValueError('Unsupported protocol={}'.format(repr(protocol)))
+
+    await asyncio.gather(*[server.wait_closed() for server in servers])
 
 ### ConnectionFromClient
 
@@ -85,11 +99,11 @@ class ConnectionFromClient(asyncio.Protocol):
     Each connection from client is represented with a separate instance of this class.
     """
 
-    def __init__(self, loop, schema, get_context):
+    def __init__(self, schema, get_context, loop):
         """
-        @param loop: uvloop.Loop - or some other loop if you opted out of enable_uvloop=True
         @param schema: graphene.Schema - GraphQL schema to serve
         @param get_context: None or callable(headers: bytes, request: dict): mixed - callback to produce GraphQL context, for example auth
+        @param loop: uvloop.Loop - or some other loop if you opted out of enable_uvloop=True
         """
         self.loop = loop
         self.schema = schema
@@ -155,7 +169,14 @@ class ConnectionFromClient(asyncio.Protocol):
 
             match = CONTENT_LENGTH_RE.search(self.request)
             if not match:
-                self.send_response({'errors': [{'message': '"Content-Length" header is not found'}]})
+                message = '"Content-Length" header is not found'
+                self.loop.call_exception_handler(dict(
+                    message=json.dumps(dict(
+                        request=self.request,
+                        message=message,
+                    ))
+                ))
+                self.send_response({'errors': [{'message': message}]})
                 return
 
             self.content_length = int(match.group(1))

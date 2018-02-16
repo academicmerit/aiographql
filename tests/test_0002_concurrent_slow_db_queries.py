@@ -8,9 +8,9 @@ import aiographql
 
 ### test
 
-def test_concurrency(schema, curl):
+def test_concurrency(schema, curl, unix_endpoint):
 
-    server_coro = aiographql.serve(schema, run=False)
+    server_coro = aiographql.serve(schema, listen=[unix_endpoint], run=False)
     loop = asyncio.get_event_loop()
     server_task = loop.create_task(server_coro)
 
@@ -18,7 +18,7 @@ def test_concurrency(schema, curl):
 
         started_at = time.perf_counter()
         sloths = [
-            curl('query Sloth($seconds: Float) { slowDb(seconds: $seconds) }', {"seconds": seconds})
+            curl(unix_endpoint, 'query Sloth($seconds: Float) { slowDb(seconds: $seconds) }', {"seconds": seconds})
             for seconds in [0.5, 0.7, 0.5, 0.7, 0.5]
         ]
         await asyncio.gather(*sloths)

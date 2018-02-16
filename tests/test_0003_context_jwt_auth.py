@@ -27,14 +27,14 @@ def get_context(headers, request):
 
 ### test
 
-def test_get_context(schema, curl):
+def test_get_context(schema, curl, unix_endpoint):
 
-    server_coro = aiographql.serve(schema, get_context=get_context, run=False)
+    server_coro = aiographql.serve(schema, listen=[unix_endpoint], get_context=get_context, run=False)
     loop = asyncio.get_event_loop()
     server_task = loop.create_task(server_coro)
 
     async def client():
-        result = await curl('{me {id}}', extra_headers=['Authorization: Bearer {}'.format(JWT)])
+        result = await curl(unix_endpoint, '{me {id}}', extra_headers=['Authorization: Bearer {}'.format(JWT)])
         server_task.cancel()
         return result
 

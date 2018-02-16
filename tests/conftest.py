@@ -34,16 +34,44 @@ class Query(graphene.ObjectType):
         await asyncio.sleep(seconds)
         return True
 
+### endpoints
+
+@pytest.fixture
+def tcp_endpoint():
+    return dict(protocol='tcp', port=25100)
+
+@pytest.fixture
+def unix_endpoint():
+    return dict(protocol='unix', path='/tmp/aiographql-tests')
+
 ### curl
 
 @pytest.fixture
 def curl():
     return _curl
 
-async def _curl(query, variables=None, operation_name=None, extra_headers=None):
+async def _curl(endpoint, query, variables=None, operation_name=None, extra_headers=None):
 
-    # Produced by GraphiQL in Chrome - Dev tools - Network - Copy as cURL - replaced host:port to --unix-socket, --silent progress meter:
-    command = '''curl --silent --unix-socket /tmp/worker0 http:/ \\
+    ### format endpoint
+
+    protocol = endpoint['protocol']
+
+    if protocol == 'tcp':
+        host = endpoint.get('host', 'localhost')
+        assert isinstance(host, str), 'Test curl() supports single host only'
+        endpoint = 'http://{}:{}/'.format(host, endpoint['port'])
+
+    elif protocol == 'unix':
+        endpoint = '--unix-socket {} http:/'.format(endpoint['path'])
+
+    else:
+        raise ValueError('Unsupported protocol={}'.format(repr(protocol)))
+
+    ### format command
+
+    # Produced by GraphiQL in Chrome - Dev tools - Network - Copy as cURL
+    # plus --silent progress meter, custom endpoint and extra_headers:
+    command = '''curl --silent {endpoint} \\
 -H 'Origin: null' \\
 -H 'Accept-Encoding: gzip, deflate, br' \\
 -H 'Accept-Language: en-US,en;q=0.9,ru;q=0.8' \\
@@ -53,6 +81,7 @@ async def _curl(query, variables=None, operation_name=None, extra_headers=None):
 -H 'Connection: keep-alive' \\
 {extra_headers} --data-binary '{content}' \\
 --compressed'''.format(
+        endpoint=endpoint,
         extra_headers=''.join("-H '{}' \\\n".format(header) for header in extra_headers) if extra_headers else '',
         content=json.dumps(dict(
             query=query,
@@ -60,6 +89,8 @@ async def _curl(query, variables=None, operation_name=None, extra_headers=None):
             operationName=operation_name,
         )),
     )
+
+    ### get response
 
     process = await asyncio.create_subprocess_shell(command,
         stdin=asyncio.subprocess.DEVNULL,  # Somewhy default "None" conflicts with "pytest" default capture mode.

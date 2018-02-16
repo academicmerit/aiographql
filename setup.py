@@ -11,7 +11,7 @@ with open(os.path.join(here, 'requirements-test.txt'), 'r') as f:
 
 setup(
     name='aiographql',
-    version='0.1.0',
+    version='0.2.0',
     description='asyncio + graphql = fast and simple api',
     keywords='asyncio graphql graphene uvloop',
     long_description='''
@@ -41,17 +41,25 @@ Usage::
             return User(id=42, name='John')
 
     schema = graphene.Schema(query=Query, mutation=None)
-    aiographql.serve(schema)
+
+    aiographql.serve(schema, listen=[
+        dict(protocol='tcp', port=25100),
+        dict(protocol='unix', path='/tmp/worker0'),
+    ])
     END
 
-    UNIX_SOCK=/tmp/worker0 python3 serve.py
+    python3 serve.py
 
-    curl --unix-socket /tmp/worker0 http:/ --data-binary '{"query": "{
+    curl http://localhost:25100/ --data-binary \
+    '{"query": "{
         me {
             id
             name
         }
     }", "variables": null}'
+
+    # OR:
+    curl --unix-socket /tmp/worker0 http:/ --data-binary ...
 
     # Result:
     # 1 second async await for DB and then:
@@ -63,12 +71,16 @@ Config::
 
     import aiographql; help(aiographql.serve)
 
-    serve(schema, get_context=None, unix_sock=None, exception_handler=None, enable_uvloop=True, run=True)
+    serve(schema, listen, get_context=None, exception_handler=None, enable_uvloop=True, run=True)
         Configure the stack and start serving requests
 
 * ``schema``: ``graphene.Schema`` - GraphQL schema to serve
+* ``listen``: ``list`` - one or more endpoints to listen for connections:
+
+    * ``dict(protocol='tcp', port=25100, ...)`` - `create_server() docs <https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.create_server>`_
+    * ``dict(protocol='unix', path='/tmp/worker0', ...)`` - `create_unix_server() docs <https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.create_unix_server>`_
+
 * ``get_context``: ``None`` or ``callable(headers: bytes, request: dict): mixed`` - callback to produce GraphQL context, for example auth
-* ``unix_sock``: ``str`` - path to unix socket to listen for requests, defaults to env var ``UNIX_SOCK`` or ``'/tmp/worker0'``
 * ``exception_handler``: ``None`` or ``callable(loop, context: dict)`` - default or custom exception handler as defined `here <https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.set_exception_handler>`_
 * ``enable_uvloop``: ``bool`` - enable uvloop for top performance, unless you have a better loop
 * ``run``: ``bool`` - if ``True``, run the loop and the coroutine serving requests, else return this coroutine

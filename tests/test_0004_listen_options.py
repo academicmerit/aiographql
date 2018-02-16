@@ -4,19 +4,17 @@
 import asyncio
 
 import aiographql
-import pytest
 
 ### test_listen_tcp
 
 def test_listen_tcp(schema, curl, tcp_endpoint):
 
-    server_coro = aiographql.serve(schema, listen=[tcp_endpoint], run=False)
+    servers = aiographql.serve(schema, listen=[tcp_endpoint], run=False)
     loop = asyncio.get_event_loop()
-    server_task = loop.create_task(server_coro)
 
     async def client():
         result = await curl(tcp_endpoint, '{me {id}}')
-        server_task.cancel()
+        await servers.close()
         return result
 
     result = loop.run_until_complete(client())
@@ -26,13 +24,12 @@ def test_listen_tcp(schema, curl, tcp_endpoint):
 
 def test_listen_unix(schema, curl, unix_endpoint):
 
-    server_coro = aiographql.serve(schema, listen=[unix_endpoint], run=False)
+    servers = aiographql.serve(schema, listen=[unix_endpoint], run=False)
     loop = asyncio.get_event_loop()
-    server_task = loop.create_task(server_coro)
 
     async def client():
         result = await curl(unix_endpoint, '{me {id}}')
-        server_task.cancel()
+        await servers.close()
         return result
 
     result = loop.run_until_complete(client())
@@ -42,13 +39,17 @@ def test_listen_unix(schema, curl, unix_endpoint):
 
 def test_listen_unsupported(schema, curl, tcp_endpoint):
 
+    contexts = []
+
+    def exception_handler(loop, context):
+        contexts.append(context)
+
     unsupported_endpoint = tcp_endpoint.copy()
     unsupported_endpoint['protocol'] = 'udp'
 
-    server_coro = aiographql.serve(schema, listen=[unsupported_endpoint], run=False)
+    servers = aiographql.serve(schema, listen=[unsupported_endpoint], exception_handler=exception_handler, run=False)
     loop = asyncio.get_event_loop()
+    loop.run_until_complete(servers.close())
 
-    with pytest.raises(ValueError) as e:
-        loop.run_until_complete(server_coro)
-
-    assert "Unsupported protocol='udp'" in str(e)
+    assert len(contexts) == 1
+    assert str(contexts[0]['exception']) == "Unsupported protocol='udp'"

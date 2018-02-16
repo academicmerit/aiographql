@@ -27,16 +27,21 @@ def serve(schema, listen, get_context=None, exception_handler=None, enable_uvloo
     Configure the stack and start serving requests
 
     @param schema: graphene.Schema - GraphQL schema to serve
-    @param listen: list( - one or more endpoints to listen for connections:
+
+    @param listen: list - one or more endpoints to listen for connections:
         dict(protocol='tcp', port=25100, ...) - https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.create_server
         dict(protocol='unix', path='/tmp/worker0', ...) - https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.create_unix_server
-    )
-    @param get_context: None or callable(headers: bytes, request: dict): mixed - callback to produce GraphQL context, for example auth
+
+    @param get_context: None or [async] callable(loop, context: dict): mixed - to produce GraphQL context like auth from input unified with exception_handler()
+
     @param exception_handler: None or callable(loop, context: dict) - default or custom exception handler as defined in
-        https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.set_exception_handler
+        https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.set_exception_handler +
+        headers: bytes or None - HTTP headers, if known
+        request: dict or bytes or None - accumulated HTTP request before content length is known, then accumulated content, then GraphQL request
+
     @param enable_uvloop: bool - enable uvloop for top performance, unless you have a better loop
-    @param run: bool - if True, run the loop and the coroutine serving requests, else return this coroutine
-    @return: coroutine or None - the coroutine serving requests, unless run=True
+    @param run: bool - if True, run the loop; False is good for tests
+    @return servers: Servers - await servers.close() to close listening sockets - good for tests
     """
     try:
         if enable_uvloop:
@@ -47,11 +52,15 @@ def serve(schema, listen, get_context=None, exception_handler=None, enable_uvloo
         if exception_handler:
             loop.set_exception_handler(exception_handler)
 
-        coro = _serve(schema, listen, get_context, loop)
+        servers = Servers()
+
+        coro = _serve(schema, listen, get_context, loop, servers)
         if run:
             loop.run_until_complete(coro)
         else:
-            return coro
+            loop.create_task(coro)
+
+        return servers
 
     except Exception as e:
         asyncio.get_event_loop().call_exception_handler(dict(
@@ -59,18 +68,17 @@ def serve(schema, listen, get_context=None, exception_handler=None, enable_uvloo
             exception=e,
         ))
 
-async def _serve(schema, listen, get_context, loop):
+async def _serve(schema, listen, get_context, loop, servers):
     """
     The coroutine serving requests.
     Should be created by serve() only.
 
     @param schema: graphene.Schema - GraphQL schema to serve
-    @param listen: list(...) - one or more endpoints to listen for connections, as defined in serve()
-    @param get_context: None or callable(headers: bytes, request: dict): mixed - callback to produce GraphQL context, for example auth
+    @param listen: list - one or more endpoints to listen for connections, as defined in serve()
+    @param get_context: None or [async] callable(loop, context: dict): mixed - to produce GraphQL context like auth as defined in serve()
     @param loop: uvloop.Loop - or some other loop if you opted out of enable_uvloop=True
+    @param servers: Servers - list that will be populated with asyncio.Server instances here
     """
-    servers = []
-
     def protocol_factory():
         return ConnectionFromClient(schema, get_context, loop)
 
@@ -92,6 +100,22 @@ async def _serve(schema, listen, get_context, loop):
 
     await asyncio.gather(*[server.wait_closed() for server in servers])
 
+### Servers
+
+class Servers(list):
+    """
+    A list of servers created by serve()
+    """
+
+    async def close(self):
+        """
+        Сlose listening sockets - good for tests
+        """
+        for server in self:
+            server.close()
+
+        await asyncio.gather(*[server.wait_closed() for server in self])
+
 ### ConnectionFromClient
 
 class ConnectionFromClient(asyncio.Protocol):
@@ -102,12 +126,12 @@ class ConnectionFromClient(asyncio.Protocol):
     def __init__(self, schema, get_context, loop):
         """
         @param schema: graphene.Schema - GraphQL schema to serve
-        @param get_context: None or callable(headers: bytes, request: dict): mixed - callback to produce GraphQL context, for example auth
+        @param get_context: None or [async] callable(loop, context: dict): mixed - to produce GraphQL context like auth as defined in serve()
         @param loop: uvloop.Loop - or some other loop if you opted out of enable_uvloop=True
         """
-        self.loop = loop
         self.schema = schema
         self.get_context = get_context
+        self.loop = loop
 
     ### connection_made
 
@@ -115,8 +139,9 @@ class ConnectionFromClient(asyncio.Protocol):
         """
         Called by asyncio when connection from client is made.
 
-        @param transport: uvloop.loop.UnixTransport which implements (but not inherits) asyncio.BaseTransport,ReadTransport,WriteTransport,
-            or some other transport if you opted out of enable_uvloop=True
+        @param transport: uvloop.loop.TCPTransport or UnixTransport or some other transport if you opted out of enable_uvloop=True,
+            but it should implement (may not inherit) asyncio.BaseTransport,ReadTransport,WriteTransport:
+            https://docs.python.org/3/library/asyncio-protocol.html#transports
         """
         self.transport = transport
         self.prepare_for_new_request()
@@ -128,13 +153,13 @@ class ConnectionFromClient(asyncio.Protocol):
         Should be called when we expect new request from this client connection:
         on connection_made() and on send_response()
 
-        self.request: bytes, None - accumulated HTTP request before content length is known, after - accumulated content
         self.content_length: int, None - content length, if known
-        self.headers: bytes, None - HTTP headers, if known and required by "get_context"
+        self.headers: bytes or None - HTTP headers, if known
+        self.request: bytes or None - accumulated HTTP request before content length is known, then accumulated content
         """
-        self.request = None
         self.content_length = None
         self.headers = None
+        self.request = None
 
     ### data_received
 
@@ -171,10 +196,10 @@ class ConnectionFromClient(asyncio.Protocol):
             if not match:
                 message = '"Content-Length" header is not found'
                 self.loop.call_exception_handler(dict(
-                    message=json.dumps(dict(
-                        request=self.request,
-                        message=message,
-                    ))
+                    message=message,
+                    protocol=self,
+                    transport=self.transport,
+                    request=self.request,
                 ))
                 self.send_response({'errors': [{'message': message}]})
                 return
@@ -183,9 +208,7 @@ class ConnectionFromClient(asyncio.Protocol):
 
             ### cut headers off
 
-            if self.get_context:
-                self.headers = self.request[:end_of_headers_index]
-
+            self.headers = self.request[:end_of_headers_index]
             self.request = self.request[end_of_headers_index + len(END_OF_HEADERS):]
 
         ### get full request
@@ -207,13 +230,14 @@ class ConnectionFromClient(asyncio.Protocol):
         Resolvers that need to await DB, etc - should be async too.
         Other resolvers should NOT be async.
 
-        @param headers: bytes, None - HTTP headers, if required by "get_context"
+        @param headers: bytes or None - HTTP headers
         @param request: bytes - content of GraphQL request
         """
         json_error_message = None
         is_response_sent = False
         try:
-            ### json parser
+
+            ### parse json
 
             try:
                 request = json.loads(request)
@@ -223,11 +247,26 @@ class ConnectionFromClient(asyncio.Protocol):
                 json_error_message = 'JSON: {}'.format(e)
                 raise
 
+            ### get context
+
+            if self.get_context:
+                context = self.get_context(self.loop, dict(
+                    message=None,  # this field is required by format shared with exception_handler()
+                    protocol=self,
+                    transport=self.transport,
+                    headers=headers,
+                    request=request,
+                ))
+                if hasattr(context, '__await__'):
+                    context = await context
+            else:
+                context = None
+
             ### execute GraphQL
 
             result = await self.schema.execute(
                 request_string=request['query'],
-                context_value=self.get_context(headers, request) if self.get_context else None,
+                context_value=context,
                 variable_values=request.get('variables'),
                 operation_name=request.get('operationName'),
                 executor=AsyncioExecutor(loop=self.loop),
@@ -253,21 +292,23 @@ class ConnectionFromClient(asyncio.Protocol):
             if result.errors:
                 for error in result.errors:
                     self.loop.call_exception_handler(dict(
-                        message=json.dumps(dict(
-                            request=request,
-                            message=error.message,
-                        )),
+                        message=error.message,
                         exception=getattr(error, 'original_error', error),
+                        protocol=self,
+                        transport=self.transport,
+                        headers=headers,
+                        request=request,
                     ))
 
         except Exception as e:
 
             self.loop.call_exception_handler(dict(
-                message=json.dumps(dict(
-                    request=request,
-                    message=str(e),
-                )),
+                message=str(e),
                 exception=e,
+                protocol=self,
+                transport=self.transport,
+                headers=headers,
+                request=request,
             ))
 
             if not is_response_sent:

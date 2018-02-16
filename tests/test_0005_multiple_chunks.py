@@ -19,9 +19,8 @@ def test_multiple_chunks(schema, curl, unix_endpoint):
     aiographql.ConnectionFromClient.data_received = new_data_received
 
     try:
-        server_coro = aiographql.serve(schema, listen=[unix_endpoint], run=False)
+        servers = aiographql.serve(schema, listen=[unix_endpoint], run=False)
         loop = asyncio.get_event_loop()
-        server_task = loop.create_task(server_coro)
 
         async def client():
             result = await curl(unix_endpoint, '''{
@@ -29,8 +28,8 @@ def test_multiple_chunks(schema, curl, unix_endpoint):
     # {comment}
     id
   }
-}'''.replace('{comment}', 's' * 10 * 1024)) # enough to produce multiple chunks
-            server_task.cancel()
+}'''.replace('{comment}', 's' * 10 * 1024))  # enough to produce multiple chunks
+            await servers.close()
             return result
 
         result = loop.run_until_complete(client())

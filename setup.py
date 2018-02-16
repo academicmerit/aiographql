@@ -22,7 +22,7 @@ setup(
 * pluggable context - for auth, logging, etc
 * exception handling - at all levels, with default or custom handler
 
-Usage::
+**Usage**::
 
     pip install aiographql
 
@@ -67,7 +67,7 @@ Usage::
 
 See `more examples and tests <https://github.com/academicmerit/aiographql/tree/master/tests>`_ about JWT auth, concurrent slow DB queries, etc.
 
-Config::
+**Config**::
 
     import aiographql; help(aiographql.serve)
 
@@ -80,11 +80,15 @@ Config::
     * ``dict(protocol='tcp', port=25100, ...)`` - `create_server() docs <https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.create_server>`_
     * ``dict(protocol='unix', path='/tmp/worker0', ...)`` - `create_unix_server() docs <https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.create_unix_server>`_
 
-* ``get_context``: ``None`` or ``callable(headers: bytes, request: dict): mixed`` - callback to produce GraphQL context, for example auth
-* ``exception_handler``: ``None`` or ``callable(loop, context: dict)`` - default or custom exception handler as defined `here <https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.set_exception_handler>`_
+* ``get_context``: ``None`` or ``[async] callable(loop, context: dict): mixed`` - to produce GraphQL context like auth from input unified with ``exception_handler()``
+* ``exception_handler``: ``None`` or ``callable(loop, context: dict)`` - default or custom exception handler as defined in `the docs <https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.set_exception_handler>`_ +
+
+   * ``headers``: ``bytes`` or ``None`` - HTTP headers, if known
+   * ``request``: ``dict`` or ``bytes`` or ``None`` - accumulated HTTP request before content length is known, then accumulated content, then GraphQL request
+
 * ``enable_uvloop``: ``bool`` - enable uvloop for top performance, unless you have a better loop
-* ``run``: ``bool`` - if ``True``, run the loop and the coroutine serving requests, else return this coroutine
-* return: ``coroutine`` or ``None`` - the coroutine serving requests, unless ``run=True``
+* ``run``: ``bool`` - if ``True``, run the loop; ``False`` is good for tests
+* return ``servers``: ``Servers`` - ``await servers.close()`` to close listening sockets - good for tests
 ''',
     url='https://github.com/academicmerit/aiographql',
     author='Denis Ryzhkov',

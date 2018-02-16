@@ -19,24 +19,36 @@ JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEwNDIifQ.2j3hDntx8lXrFAUgK
 
 ### get_context
 
-def get_context(headers, request):
-    match = AUTH_RE.search(headers)
+def get_context(loop, context):
+    match = AUTH_RE.search(context['headers'])
     return dict(
         jwt=jwt.decode(match.group(1), JWT_SECRET, algorithms=[JWT_ALG]) if match else None,
     )
 
-### test
+### test_get_context
 
 def test_get_context(schema, curl, unix_endpoint):
+    _test_get_context(schema, curl, unix_endpoint, get_context)
 
-    server_coro = aiographql.serve(schema, listen=[unix_endpoint], get_context=get_context, run=False)
+def _test_get_context(schema, curl, unix_endpoint, get_context):
+    servers = aiographql.serve(schema, listen=[unix_endpoint], get_context=get_context, run=False)
     loop = asyncio.get_event_loop()
-    server_task = loop.create_task(server_coro)
 
     async def client():
         result = await curl(unix_endpoint, '{me {id}}', extra_headers=['Authorization: Bearer {}'.format(JWT)])
-        server_task.cancel()
+        await servers.close()
         return result
 
     result = loop.run_until_complete(client())
     assert result == {'data': {'me': {'id': '1042'}}}
+
+### test_get_context_async
+
+async def get_context_async(loop, context):
+    await asyncio.sleep(0.1)  # DB
+    return get_context(loop, context)
+
+def test_get_context_async(schema, curl, unix_endpoint):
+    _test_get_context(schema, curl, unix_endpoint, get_context_async)
+
+# See more tests of shared context in test_0006_exception_handler.py

@@ -10,9 +10,8 @@ import aiographql
 
 def test_concurrency(schema, curl, unix_endpoint):
 
-    server_coro = aiographql.serve(schema, listen=[unix_endpoint], run=False)
+    servers = aiographql.serve(schema, listen=[unix_endpoint], run=False)
     loop = asyncio.get_event_loop()
-    server_task = loop.create_task(server_coro)
 
     async def clients():
 
@@ -24,7 +23,7 @@ def test_concurrency(schema, curl, unix_endpoint):
         await asyncio.gather(*sloths)
         result = time.perf_counter() - started_at
 
-        server_task.cancel()
+        await servers.close()
         return result
 
     result = loop.run_until_complete(clients())

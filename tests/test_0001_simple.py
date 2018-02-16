@@ -22,7 +22,6 @@ def test_simple(schema, curl, unix_endpoint):
       id
       name
     }
-    # comment
   }
 }''')
         server_task.cancel()

@@ -75,8 +75,8 @@ https://github.com/academicmerit/aiographql/tree/master/tests
 * `get_context`: `None` or `[async] callable(loop, context: dict): mixed` - to produce GraphQL context like auth from input unified with `exception_handler()`
 * `exception_handler`: `None` or `callable(loop, context: dict)` - default or custom exception handler as defined in  
    https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.set_exception_handler +
-   `headers`: `bytes` or `None` - HTTP headers, if known
-   `request`: `dict` or `bytes` or `None` - accumulated HTTP request before content length is known, then accumulated content, then GraphQL request
+    * `headers`: `bytes` or `None` - HTTP headers, if known
+    * `request`: `dict` or `bytes` or `None` - accumulated HTTP request before content length is known, then accumulated content, then GraphQL request
 * `enable_uvloop`: `bool` - enable uvloop for top performance, unless you have a better loop
 * `run`: `bool` - if `True`, run the loop; `False` is good for tests
 * return `servers`: `Servers` - `await servers.close()` to close listening sockets - good for tests

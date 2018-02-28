@@ -95,7 +95,7 @@ https://github.com/academicmerit/aiographql/tree/master/tests
 
 ## License
 
-aiographql version 0.2.0  
+aiographql version 0.2.1  
 Created and maintained by [Denis Ryzhkov](https://github.com/denis-ryzhkov/) \<denisr@denisr.com\> and other [aiographql authors](AUTHORS.md)  
 Copyright (C) 2018 by AcademicMerit LLC (dba [FineTune](https://www.finetunelearning.com/))  
 MIT License, see https://opensource.org/licenses/MIT

@@ -1,12 +1,15 @@
 """
-aiographql version 0.1.0
+aiographql version 0.2.1
 asyncio + graphql = fast and simple api
 Docs: https://github.com/academicmerit/aiographql/blob/master/README.md
 """
 
+__version__ = '0.2.1'
+
 ### import
 
 import asyncio
+import datetime
 import os
 import re
 
@@ -19,6 +22,18 @@ from graphql.execution.executors.asyncio import AsyncioExecutor
 
 END_OF_HEADERS = b'\r\n\r\n'
 CONTENT_LENGTH_RE = re.compile(br'\r\nContent-Length:\s*(\d+)', re.IGNORECASE)
+
+HTTP_RESPONSE = '''HTTP/1.1 200 OK
+Access-Control-Allow-Origin: *
+Content-Length: {content_length}
+Content-Type: application/json
+Date: {date} GMT
+Expires: Wed, 21 Oct 2015 07:28:00 GMT
+Server: aiographql/{version}
+
+{content}'''.replace('\n', '\r\n').replace('{version}', __version__)
+# HTTP status is always "200 OK".
+# Good explanation why: https://github.com/graphql-python/graphene/issues/142#issuecomment-221290862
 
 ### serve
 
@@ -320,23 +335,15 @@ class ConnectionFromClient(asyncio.Protocol):
         """
         Send response to the client.
 
-        HTTP status is always "200 OK". Good explanation why:
-        https://github.com/graphql-python/graphene/issues/142#issuecomment-221290862
-
         @param response: dict - http://facebook.github.io/graphql/October2016/#sec-Response-Format
         """
         self.prepare_for_new_request()
         content = json.dumps(response)
 
-        http_response = '''HTTP/1.1 200 OK
-Access-Control-Allow-Origin: *
-Content-Length: {content_length}
-Content-Type: application/json
-Expires: Wed, 21 Oct 2015 07:28:00 GMT
-
-{content}'''.format(
+        http_response = HTTP_RESPONSE.format(
             content_length=len(content),
             content=content,
+            date=datetime.datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S'),
         )
 
         self.transport.write(http_response.encode())

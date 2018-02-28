@@ -11,7 +11,7 @@ with open(os.path.join(here, 'requirements-test.txt'), 'r') as f:
 
 setup(
     name='aiographql',
-    version='0.2.0',
+    version='0.2.1',
     description='asyncio + graphql = fast and simple api',
     keywords='asyncio graphql graphene uvloop',
     long_description='''
@@ -50,7 +50,7 @@ setup(
 
     python3 serve.py
 
-    curl http://localhost:25100/ --data-binary \
+    curl http://localhost:25100/ --data-binary \\
     '{"query": "{
         me {
             id

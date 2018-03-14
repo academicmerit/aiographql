@@ -265,15 +265,18 @@ class ConnectionFromClient(asyncio.Protocol):
             ### get context
 
             if self.get_context:
-                context = self.get_context(self.loop, dict(
-                    message=None,  # this field is required by format shared with exception_handler()
-                    protocol=self,
-                    transport=self.transport,
-                    headers=headers,
-                    request=request,
-                ))
-                if hasattr(context, '__await__'):
-                    context = await context
+                if isinstance(self.get_context,dict):
+                    context = self.get_context
+                else:
+                    context = self.get_context(self.loop, dict(
+                        message=None,  # this field is required by format shared with exception_handler()
+                        protocol=self,
+                        transport=self.transport,
+                        headers=headers,
+                        request=request,
+                    ))
+                    if hasattr(context, '__await__'):
+                        context = await context
             else:
                 context = None
 
